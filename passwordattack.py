@@ -1,5 +1,6 @@
 import time
 import itertools
+import os
 import random
 from collections import deque
 import threading
@@ -116,8 +117,13 @@ def optimized_random_attack(target_psk, keys, max_attempts=1000000):
 
 def smart_brute_force(
     target_psk,
-    keys="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()-_=+[]{}|;:,.<>?/~`"
+    keys="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()-_=+[]{}|;:,.<>?/~`",
+    wordlist=None,
 ):
+    """Hybrid attack: dictionary (optional) + common patterns + brute force.
+
+    If ``wordlist`` is provided and the file exists, test each entry first.
+    """
 
     print("[+] Smart hybrid WPA-PSK attack")
 
@@ -132,6 +138,18 @@ def smart_brute_force(
         lambda: "guest",
         lambda: random.choice(keys).upper() * 8,
     ]
+
+    # phase 0: dictionary
+    if wordlist and os.path.isfile(wordlist):
+        print(f"[*] Testing dictionary {wordlist}...")
+        with open(wordlist, errors="ignore") as f:
+            for line in f:
+                guess = line.strip()
+                if not guess:
+                    continue
+                if guess == target_psk:
+                    print(f"[!] CRACKED with wordlist entry: {guess}")
+                    return True
 
     print("[*] Phase 1: Common patterns...")
 

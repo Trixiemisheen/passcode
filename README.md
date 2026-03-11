@@ -325,6 +325,12 @@ For issues or questions:
 2. Run `python passwordattack.py --help`
 3. Review the Architecture section for mode details
 
+### 📧 Found Something Intriguing?
+
+Don't hesitate to contact me:
+- **Email:** misheentrixie@gmail.com
+- **WhatsApp:** [wa.me/+254791915925](https://wa.me/254791915925)
+
 ---
 
 **Stay safe. Test securely.** ⚡🔐

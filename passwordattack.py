@@ -1,3 +1,8 @@
+"""""
+Built by Trixie Misheen™ All rigjts reserved. For authorized pentesting use only.
+This is a demonstration of various password attack techniques, including a smart "AI Brain" generator that creates intelligent password candidates based on common patterns and mutations.
+ The script supports multiple attack modes: lightning (top patterns), smart (dictionary + patterns), systematic brute-force, optimized random, and the AI Brain approach.
+"""""
 import time
 import itertools
 import os

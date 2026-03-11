@@ -1,6 +1,10 @@
 # 🔐 Password Attack Toolbox
 
-A multi-mode WPA-PSK/password cracker with AI-powered intelligent password generation, built for penetration testing and educational purposes.
+**Built by Trixie Misheen™**
+
+> A multi-mode WPA-PSK/password cracker with AI-powered intelligent password generation, built for penetration testing and educational purposes.
+
+**GitHub:** [TrixieMisheen/passcode](https://github.com/TrixieMisheen/passcode)
 
 ---
 
@@ -324,3 +328,9 @@ For issues or questions:
 ---
 
 **Stay safe. Test securely.** ⚡🔐
+
+---
+
+**Built with ❤️ by [Trixie Misheen™](https://github.com/TrixieMisheen)**
+
+© 2026 Trixie Misheen. All rights reserved.

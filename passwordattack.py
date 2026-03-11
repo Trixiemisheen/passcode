@@ -284,27 +284,5 @@ def main():
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="WPA‑PSK cracker demo")
-    parser.add_argument("target", help="target PSK")
-    parser.add_argument("--mode", choices=["lightning","smart","systematic","random"],
-                        default="lightning")
-    parser.add_argument("--workers", type=int, default=4)
-    args = parser.parse_args()
-
-    keys = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" \
-           "!@#$%^&*()-_=+[]{}|;:,.<>?/~`"
-
-    if args.mode == "lightning":
-        result = lightning_attack(args.target, keys)
-        if result:
-            print(f"\n🎯 CRACKED INSTANTLY: {result}")
-        else:
-            print("\n[!] Lightning failed - trying smart mode...")
-            smart_brute_force(args.target, keys)
-    elif args.mode == "smart":
-        smart_brute_force(args.target, keys, wordlist=args.wordlist)
-    elif args.mode == "systematic":
-        brute_force_psk(args.target, keys, max_workers=args.workers)
-    elif args.mode == "random":
-        optimized_random_attack(args.target, keys, max_attempts=1000000)
+    main()
 

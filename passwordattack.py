@@ -225,7 +225,8 @@ def main():
     parser = argparse.ArgumentParser(
         description="Password attack toolbox: lightning, smart, brute-force or random")
 
-    parser.add_argument("target", help="target PSK to crack (for demo/testing)")
+    parser.add_argument("target", nargs="?",
+                        help="target PSK to crack (for demo/testing); if omitted you'll be prompted")
     parser.add_argument("-m", "--mode",
                         choices=["lightning", "smart", "systematic", "random"],
                         default="lightning",
@@ -242,6 +243,10 @@ def main():
     parser.add_argument("--logfile", help="optional log file to write output")
 
     args = parser.parse_args()
+
+    # if the target was omitted on the command line, fall back to interactive input
+    if not args.target:
+        args.target = input("Enter target PSK: ").strip()
 
     if args.logfile:
         # simple logging to file as well as stdout

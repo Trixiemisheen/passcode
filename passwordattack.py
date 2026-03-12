@@ -15,6 +15,9 @@ from collections import deque
 import threading
 from concurrent.futures import ThreadPoolExecutor
 import argparse
+import sys
+import tkinter as tk
+from tkinter import ttk, scrolledtext
 
 
 class AIBrain:
@@ -394,79 +397,339 @@ def lightning_attack(target_psk, keys):
     return None
 
 
+class HackerGUI:
+    """Dark-themed hacker GUI for password attacks with real-time visualization."""
+
+    def __init__(self, root):
+        self.root = root
+        self.root.title("🔓 PASSWORD CRACKER - AUTHORIZED PENTEST ONLY")
+        self.root.geometry("900x700")
+        self.root.configure(bg="#0a0e27")
+
+        # Configure dark theme colors
+        self.bg_dark = "#0a0e27"
+        self.bg_darker = "#050812"
+        self.neon_green = "#00ff41"
+        self.neon_cyan = "#00f0ff"
+        self.neon_red = "#ff0055"
+        self.text_color = "#00ff41"
+        self.secondary_text = "#888888"
+
+        self.attack_thread = None
+        self.running = False
+
+        # Create UI
+        self._create_header()
+        self._create_input_section()
+        self._create_mode_section()
+        self._create_output_section()
+        self._create_button_section()
+        self._create_status_bar()
+
+    def _create_header(self):
+        """Create header with hacker theme."""
+        header_frame = tk.Frame(self.root, bg=self.bg_darker, height=80)
+        header_frame.pack(fill=tk.X, padx=0, pady=0)
+
+        title = tk.Label(
+            header_frame,
+            text="▓▓▓ PASSWORD CRACKER ▓▓▓",
+            font=("Courier New", 20, "bold"),
+            fg=self.neon_green,
+            bg=self.bg_darker,
+        )
+        title.pack(pady=10)
+
+        subtitle = tk.Label(
+            header_frame,
+            text="⚡ AI-POWERED ATTACK ENGINE | AUTHORIZED USE ONLY ⚡",
+            font=("Courier New", 10),
+            fg=self.neon_cyan,
+            bg=self.bg_darker,
+        )
+        subtitle.pack()
+
+        divider = tk.Label(
+            header_frame,
+            text="=" * 80,
+            font=("Courier New", 8),
+            fg=self.secondary_text,
+            bg=self.bg_darker,
+        )
+        divider.pack()
+
+    def _create_input_section(self):
+        """Create input fields section."""
+        input_frame = tk.Frame(self.root, bg=self.bg_dark)
+        input_frame.pack(fill=tk.X, padx=15, pady=10)
+
+        # Target PSK
+        tk.Label(input_frame, text="[>] TARGET PSK:", font=("Courier New", 10, "bold"),
+                fg=self.neon_green, bg=self.bg_dark).pack(anchor=tk.W)
+        self.target_var = tk.StringVar(value="password123")
+        target_entry = tk.Entry(input_frame, textvariable=self.target_var,
+                               font=("Courier New", 10), bg="#1a1f3a",
+                               fg=self.neon_cyan, insertbackground=self.neon_green)
+        target_entry.pack(fill=tk.X, pady=(5, 10))
+
+        # Wordlist
+        tk.Label(input_frame, text="[>] WORDLIST (optional):", font=("Courier New", 10, "bold"),
+                fg=self.neon_green, bg=self.bg_dark).pack(anchor=tk.W)
+        self.wordlist_var = tk.StringVar()
+        wordlist_entry = tk.Entry(input_frame, textvariable=self.wordlist_var,
+                                 font=("Courier New", 10), bg="#1a1f3a",
+                                 fg=self.neon_cyan, insertbackground=self.neon_green)
+        wordlist_entry.pack(fill=tk.X, pady=(5, 10))
+
+    def _create_mode_section(self):
+        """Create attack mode selection."""
+        mode_frame = tk.Frame(self.root, bg=self.bg_dark)
+        mode_frame.pack(fill=tk.X, padx=15, pady=10)
+
+        tk.Label(mode_frame, text="[>] ATTACK MODE:", font=("Courier New", 10, "bold"),
+                fg=self.neon_green, bg=self.bg_dark).pack(anchor=tk.W)
+
+        self.mode_var = tk.StringVar(value="lightning")
+        modes = ["lightning", "smart", "ai-brain", "systematic", "random"]
+
+        mode_button_frame = tk.Frame(mode_frame, bg=self.bg_dark)
+        mode_button_frame.pack(fill=tk.X, pady=(5, 10))
+
+        for mode in modes:
+            rb = tk.Radiobutton(
+                mode_button_frame, text=mode.upper(), variable=self.mode_var, value=mode,
+                font=("Courier New", 9), fg=self.neon_cyan, bg=self.bg_dark,
+                selectcolor=self.bg_darker, activeforeground=self.neon_green,
+                activebackground=self.bg_dark
+            )
+            rb.pack(side=tk.LEFT, padx=5)
+
+    def _create_output_section(self):
+        """Create output/log section."""
+        output_frame = tk.Frame(self.root, bg=self.bg_dark)
+        output_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=10)
+
+        tk.Label(output_frame, text="[>] ATTACK LOG:", font=("Courier New", 10, "bold"),
+                fg=self.neon_green, bg=self.bg_dark).pack(anchor=tk.W)
+
+        self.output_text = scrolledtext.ScrolledText(
+            output_frame, height=12, font=("Courier New", 9),
+            bg=self.bg_darker, fg=self.neon_green, insertbackground=self.neon_cyan
+        )
+        self.output_text.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
+        self.output_text.config(state=tk.DISABLED)
+
+        # Configure tags for colors
+        self.output_text.tag_config("success", foreground=self.neon_green)
+        self.output_text.tag_config("error", foreground=self.neon_red)
+        self.output_text.tag_config("info", foreground=self.neon_cyan)
+
+    def _create_button_section(self):
+        """Create control buttons."""
+        button_frame = tk.Frame(self.root, bg=self.bg_dark)
+        button_frame.pack(fill=tk.X, padx=15, pady=10)
+
+        launch_btn = tk.Button(
+            button_frame, text="⚡ LAUNCH ATTACK ⚡", command=self.launch_attack,
+            font=("Courier New", 11, "bold"), bg=self.neon_red, fg="#000000",
+            padx=15, pady=8, cursor="hand2"
+        )
+        launch_btn.pack(side=tk.LEFT, padx=5)
+
+        stop_btn = tk.Button(
+            button_frame, text="STOP", command=self.stop_attack,
+            font=("Courier New", 11, "bold"), bg=self.neon_cyan, fg="#000000",
+            padx=15, pady=8, cursor="hand2"
+        )
+        stop_btn.pack(side=tk.LEFT, padx=5)
+
+        clear_btn = tk.Button(
+            button_frame, text="CLEAR LOG", command=self.clear_output,
+            font=("Courier New", 11, "bold"), bg=self.secondary_text, fg="#000000",
+            padx=15, pady=8, cursor="hand2"
+        )
+        clear_btn.pack(side=tk.LEFT, padx=5)
+
+    def _create_status_bar(self):
+        """Create status bar at bottom."""
+        status_frame = tk.Frame(self.root, bg=self.bg_darker, height=30)
+        status_frame.pack(fill=tk.X, side=tk.BOTTOM)
+
+        self.status_var = tk.StringVar(value="[STATUS] Ready for attack...")
+        status_label = tk.Label(
+            status_frame, textvariable=self.status_var,
+            font=("Courier New", 9), fg=self.neon_green, bg=self.bg_darker
+        )
+        status_label.pack(anchor=tk.W, padx=10, pady=5)
+
+    def log_output(self, message, tag="info"):
+        """Append message to output with tag."""
+        self.output_text.config(state=tk.NORMAL)
+        self.output_text.insert(tk.END, message + "\n", tag)
+        self.output_text.see(tk.END)
+        self.output_text.config(state=tk.DISABLED)
+        self.root.update()
+
+    def update_status(self, message):
+        """Update status bar."""
+        self.status_var.set(f"[STATUS] {message}")
+        self.root.update()
+
+    def launch_attack(self):
+        """Launch password attack in separate thread."""
+        if self.running:
+            self.log_output("[!] Attack already running!", "error")
+            return
+
+        target = self.target_var.get().strip()
+        if not target:
+            self.log_output("[!] ERROR: Enter a target PSK!", "error")
+            return
+
+        self.running = True
+        self.update_status("Running attack...")
+        self.log_output("\n" + "=" * 60)
+        self.log_output("    ⚡ ATTACK INITIATED ⚡", "success")
+        self.log_output("=" * 60 + "\n")
+
+        self.attack_thread = threading.Thread(
+            target=self._run_attack,
+            args=(target, self.mode_var.get(), self.wordlist_var.get()),
+            daemon=True
+        )
+        self.attack_thread.start()
+
+    def _run_attack(self, target, mode, wordlist):
+        """Run the actual attack."""
+        try:
+            keys = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()-_=+[]{}|;:,.<>?/~`"
+
+            self.log_output(f"[*] Mode: {mode.upper()}", "info")
+            self.log_output(f"[*] Target: {target}\n", "info")
+
+            if mode == "lightning":
+                result = lightning_attack(target, keys)
+                if result:
+                    self.log_output(f"\n🎯 CRACKED INSTANTLY: {result}\n", "success")
+                else:
+                    self.log_output("\n[!] Lightning failed...\n", "error")
+            elif mode == "ai-brain":
+                result, attempts, elapsed = ai_brain_attack(
+                    target, max_length=20, max_threads=8, timeout=60
+                )
+                if result:
+                    self.log_output(f"\n🎯 AI BRAIN VICTORY: {result}\n", "success")
+                else:
+                    self.log_output("\n[!] AI brain exhausted...\n", "error")
+            elif mode == "smart":
+                smart_brute_force(target, keys, wordlist=wordlist if wordlist else None)
+            elif mode == "systematic":
+                brute_force_psk(target, keys, max_workers=4)
+            elif mode == "random":
+                optimized_random_attack(target, keys, max_attempts=1000000)
+
+            self.log_output("\n[✓] Attack complete!\n", "success")
+            self.update_status("Attack finished")
+
+        except Exception as e:
+            self.log_output(f"[!] ERROR: {str(e)}", "error")
+            self.update_status("Error occurred")
+        finally:
+            self.running = False
+
+    def stop_attack(self):
+        """Stop the running attack."""
+        self.running = False
+        self.log_output("\n[!] Attack stopped by user.\n", "error")
+        self.update_status("Attack stopped")
+
+    def clear_output(self):
+        """Clear the output log."""
+        self.output_text.config(state=tk.NORMAL)
+        self.output_text.delete(1.0, tk.END)
+        self.output_text.config(state=tk.DISABLED)
+
+
 def main():
-    parser = argparse.ArgumentParser(
-        description="Password attack toolbox: lightning, smart, brute-force or random")
+    # Check for CLI args - if provided, run CLI mode; otherwise run GUI
+    if len(sys.argv) > 1:
+        parser = argparse.ArgumentParser(
+            description="Password attack toolbox: lightning, smart, brute-force or random")
 
-    parser.add_argument("target", nargs="?",
-                        help="target PSK to crack (for demo/testing); if omitted you'll be prompted")
-    parser.add_argument("-m", "--mode",
-                        choices=["lightning", "smart", "systematic", "random", "ai-brain"],
-                        default="lightning",
-                        help="attack mode to run")
-    parser.add_argument("-k", "--charset",
-                        default="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()-_=+[]{}|;:,.<>?/~`",
-                        help="custom character set for brute force")
-    parser.add_argument("-w", "--wordlist",
-                        help="wordlist file used by smart/lightning modes")
-    parser.add_argument("-t", "--threads", type=int, default=4,
-                        help="max worker threads for systematic brute force")
-    parser.add_argument("--timeout", type=int, default=60,
-                        help="timeout in seconds for ai-brain attack")
-    parser.add_argument("--max-length", type=int, default=20,
-                        help="max password length for AI brain generation")
-    parser.add_argument("--max-random", type=int, default=1000000,
-                        help="max attempts for random attack")
-    parser.add_argument("--logfile", help="optional log file to write output")
+        parser.add_argument("target", nargs="?",
+                            help="target PSK to crack (for demo/testing); if omitted you'll be prompted")
+        parser.add_argument("-m", "--mode",
+                            choices=["lightning", "smart", "systematic", "random", "ai-brain"],
+                            default="lightning",
+                            help="attack mode to run")
+        parser.add_argument("-k", "--charset",
+                            default="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()-_=+[]{}|;:,.<>?/~`",
+                            help="custom character set for brute force")
+        parser.add_argument("-w", "--wordlist",
+                            help="wordlist file used by smart/lightning modes")
+        parser.add_argument("-t", "--threads", type=int, default=4,
+                            help="max worker threads for systematic brute force")
+        parser.add_argument("--timeout", type=int, default=60,
+                            help="timeout in seconds for ai-brain attack")
+        parser.add_argument("--max-length", type=int, default=20,
+                            help="max password length for AI brain generation")
+        parser.add_argument("--max-random", type=int, default=1000000,
+                            help="max attempts for random attack")
+        parser.add_argument("--logfile", help="optional log file to write output")
 
-    args = parser.parse_args()
+        args = parser.parse_args()
 
-    # if the target was omitted on the command line, fall back to interactive input
-    if not args.target:
-        args.target = input("Enter target PSK: ").strip()
+        # if the target was omitted on the command line, fall back to interactive input
+        if not args.target:
+            args.target = input("Enter target PSK: ").strip()
 
-    if args.logfile:
-        # simple logging to file as well as stdout
-        import logging
+        if args.logfile:
+            # simple logging to file as well as stdout
+            import logging
 
-        logging.basicConfig(filename=args.logfile,
-                            level=logging.DEBUG,
-                            format="%(asctime)s %(message)s")
+            logging.basicConfig(filename=args.logfile,
+                                level=logging.DEBUG,
+                                format="%(asctime)s %(message)s")
 
-        def log(msg):
-            print(msg)
-            logging.debug(msg)
+            def log(msg):
+                print(msg)
+                logging.debug(msg)
+        else:
+            log = print
+
+        keys = args.charset
+        target_psk = args.target
+        log("\n" + "=" * 60)
+        log("    PENTEST AUTHORIZED - LIGHTNING CRACKER (demo)")
+        log("=" * 60)
+
+        if args.mode == "lightning":
+            result = lightning_attack(target_psk, keys)
+            if result:
+                log(f"\n🎯 CRACKED INSTANTLY: {result}")
+            else:
+                log("\n[!] Lightning failed - trying smart mode...")
+                smart_brute_force(target_psk, keys)
+        elif args.mode == "ai-brain":
+            result, attempts, elapsed = ai_brain_attack(target_psk, max_length=args.max_length,
+                                                        max_threads=args.threads,
+                                                        timeout=args.timeout)
+            if result:
+                log(f"\n🎯 AI BRAIN VICTORY: {result}")
+            else:
+                log("\n[!] AI brain exhausted, falling back to smart mode...")
+                smart_brute_force(target_psk, keys)
+        elif args.mode == "smart":
+            smart_brute_force(target_psk, keys, wordlist=args.wordlist)
+        elif args.mode == "systematic":
+            brute_force_psk(target_psk, keys, max_workers=args.threads)
+        elif args.mode == "random":
+            optimized_random_attack(target_psk, keys, max_attempts=args.max_random)
     else:
-        log = print
-
-    keys = args.charset
-    target_psk = args.target
-    log("\n" + "=" * 60)
-    log("    PENTEST AUTHORIZED - LIGHTNING CRACKER (demo)")
-    log("=" * 60)
-
-    if args.mode == "lightning":
-        result = lightning_attack(target_psk, keys)
-        if result:
-            log(f"\n🎯 CRACKED INSTANTLY: {result}")
-        else:
-            log("\n[!] Lightning failed - trying smart mode...")
-            smart_brute_force(target_psk, keys)
-    elif args.mode == "ai-brain":
-        result, attempts, elapsed = ai_brain_attack(target_psk, max_length=args.max_length,
-                                                    max_threads=args.threads,
-                                                    timeout=args.timeout)
-        if result:
-            log(f"\n🎯 AI BRAIN VICTORY: {result}")
-        else:
-            log("\n[!] AI brain exhausted, falling back to smart mode...")
-            smart_brute_force(target_psk, keys)
-    elif args.mode == "smart":
-        smart_brute_force(target_psk, keys, wordlist=args.wordlist)
-    elif args.mode == "systematic":
-        brute_force_psk(target_psk, keys, max_workers=args.threads)
-    elif args.mode == "random":
-        optimized_random_attack(target_psk, keys, max_attempts=args.max_random)
+        # Launch GUI
+        root = tk.Tk()
+        gui = HackerGUI(root)
+        root.mainloop()
 
 
 if __name__ == "__main__":

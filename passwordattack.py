@@ -34,7 +34,7 @@ class AIBrain:
 
         self.prefixes = ["admin", "user", "root", "test", "guest"]
         self.suffixes = ["123", "1234", "12345", "2023", "2024", "2025", "!", "@", "!!", "1!"]
-        self.years = [str(y) for y in range(2020, 2027)]
+        self.years = [str(y) for y in range(2000, 2027)]
         self.symbols = ["!", "@", "#", "$", "%"]
 
         # Selective leet mappings (common in real passwords)
@@ -344,7 +344,7 @@ def lightning_attack(target_psk, keys):
         "123456789", "password123", "welcome1",
         "monkey123", "admin2024", "Password1", "admin1"
     ]
-
+#$Trixie Misheen™$#
     for guess in top100:
         if guess == target_psk:
             print(f"[⚡] TOP100 HIT: {guess}")
@@ -402,7 +402,7 @@ class HackerGUI:
 
     def __init__(self, root):
         self.root = root
-        self.root.title("🔓 PASSWORD CRACKER - AUTHORIZED PENTEST ONLY")
+        self.root.title("🔓 PASSWORD CRACKER™ - AUTHORIZED PENTEST ONLY💀 ")
         self.root.geometry("900x700")
         self.root.configure(bg="#0a0e27")
 
@@ -433,7 +433,7 @@ class HackerGUI:
 
         title = tk.Label(
             header_frame,
-            text="▓▓▓ PASSWORD CRACKER ▓▓▓",
+            text="▓▓▓ PASSWORD CRACKER™ ▓▓▓",
             font=("Courier New", 20, "bold"),
             fg=self.neon_green,
             bg=self.bg_darker,
@@ -442,7 +442,7 @@ class HackerGUI:
 
         subtitle = tk.Label(
             header_frame,
-            text="⚡ AI-POWERED ATTACK ENGINE | AUTHORIZED USE ONLY ⚡",
+            text="⚡ AI-POWERED ATTACK ENGINE™ | AUTHORIZED USE ONLY TRIXIE MISHEEN ⚡",
             font=("Courier New", 10),
             fg=self.neon_cyan,
             bg=self.bg_darker,

